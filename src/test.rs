@@ -19,6 +19,7 @@ use relations::reduction::Reduction;
 use crate::common_reference_string::CommonReferenceString;
 use crate::prover::prove_principal_relation_oneround;
 use crate::verifier::verify_principal_relation_oneround;
+use crate::{nvtx_timed, nvtx_timed_pop};
 
 // Q = 2^64+1
 const Q1: u64 = 274177;
@@ -32,7 +33,7 @@ fn init() {
     let _ = tracing_subscriber::fmt::fmt()
         .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
         .event_format(format().compact())
-        .with_env_filter("none,labrador=trace")
+        // .with_env_filter("none,labrador=trace,lattirust_arithmetic=trace,relations=trace")
         .try_init();
 }
 
@@ -54,9 +55,10 @@ where
         _index_in: &Self::IndexIn,
         _instance_in: &Self::InstanceIn,
     ) -> IOPattern {
+        nvtx_timed!("iopattern");
         let log_q = R::modulus().bits() as f64;
         let num_aggregs = (128. / log_q).ceil() as usize;
-        IOPattern::new("reduction_binaryr1cs_principalrelation")
+        let pattern = IOPattern::new("reduction_binaryr1cs_principalrelation")
             .absorb_vector::<R>(crs.k1, "prover message 1")
             .squeeze_matrices::<R, WeightedTernaryChallengeSet<R>>(
                 256,
@@ -83,7 +85,9 @@ where
             .absorb_vector::<R>(crs.n, "prover message 5 (z)")
             .absorb_vectors::<R>(crs.k, crs.r, "prover message 5 (t)")
             .absorb_symmetric_matrix::<R>(crs.r, "prover message 5 (G)")
-            .absorb_symmetric_matrix::<R>(crs.r, "prover message 5 (H)")
+            .absorb_symmetric_matrix::<R>(crs.r, "prover message 5 (H)");
+        nvtx_timed_pop!();
+        pattern
     }
 
     fn prove(
@@ -93,7 +97,10 @@ where
         witness: &Self::WitnessIn,
         merlin: &mut Merlin,
     ) -> ProofResult<(Self::IndexOut, Self::InstanceOut, Self::WitnessOut)> {
-        prove_principal_relation_oneround(merlin, pp, index, instance, witness)
+        nvtx_timed!("prove");
+        let result = prove_principal_relation_oneround(merlin, pp, index, instance, witness);
+        nvtx_timed_pop!();
+        result
     }
 
     fn verify(
@@ -102,7 +109,10 @@ where
         instance_in: &Self::InstanceIn,
         arthur: &mut Arthur,
     ) -> ProofResult<(Self::IndexOut, Self::InstanceOut)> {
-        verify_principal_relation_oneround(arthur, pp, index_in, instance_in)
+        nvtx_timed!("verify");
+        let result = verify_principal_relation_oneround(arthur, pp, index_in, instance_in);
+        nvtx_timed_pop!();
+        result
     }
 }
 

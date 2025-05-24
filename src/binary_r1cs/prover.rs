@@ -1,4 +1,5 @@
 #![allow(non_snake_case)]
+#![macro_use]
 
 use nimue::{Merlin, ProofResult};
 use tracing::{event, instrument, Level};
@@ -18,6 +19,7 @@ use crate::binary_r1cs::BinaryR1CS;
 use crate::binary_r1cs::util::{BinaryR1CSCRS, BinaryR1CSTranscript, reduce};
 use crate::prover::prove_principal_relation;
 use crate::util::{concat, embed, lift};
+use crate::{nvtx_timed, nvtx_timed_pop};
 
 #[instrument(
     name = "BinR1CS -> PR",
@@ -51,6 +53,7 @@ where
     let b = B * &w;
     let c = C * &w;
 
+    nvtx_timed!("compute_abc");
     event!(Level::DEBUG, "computing A*w, B*w, C*w");
 
     let a_R = lift::<R>(&a);
@@ -68,6 +71,8 @@ where
 
     merlin.absorb_vector(&t).unwrap();
 
+    nvtx_timed_pop!();
+    nvtx_timed!("squeeze_alpha");
     event!(
         Level::DEBUG,
         "squeezing alpha in {{0,1}}^{}x{k}",
@@ -76,6 +81,9 @@ where
     let alpha = merlin
         .challenge_binary_matrix(pp.security_parameter, k)
         .unwrap();
+
+    nvtx_timed_pop!();
+    nvtx_timed!("squeeze_beta");
     event!(
         Level::DEBUG,
         "squeezing beta in {{0,1}}^{}x{k}",
@@ -84,6 +92,9 @@ where
     let beta = merlin
         .challenge_binary_matrix(pp.security_parameter, k)
         .unwrap();
+
+    nvtx_timed_pop!();
+    nvtx_timed!("squeeze_gamma");
     event!(
         Level::DEBUG,
         "squeezing gamma in {{0,1}}^{}x{k}",
@@ -121,6 +132,9 @@ where
         g.len(),
         pp.security_parameter
     );
+
+    nvtx_timed_pop!();
+    nvtx_timed!("absorb_g");
     event!(Level::DEBUG, "absorbing g in R_q^{}", pp.security_parameter);
     merlin.absorb_vector_canonical::<R::BaseRing>(&g).unwrap();
 
@@ -144,6 +158,7 @@ where
         a_R, b_R, c_R, w_R, a_tilde, b_tilde, c_tilde, w_tilde,
     ]); // see definition of indices above
 
+    nvtx_timed_pop!();
     (index_pr, instance_pr, witness_pr)
 }
 

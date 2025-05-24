@@ -1,4 +1,3 @@
-
 use nimue::{Arthur, IOPattern, Merlin, ProofResult};
 
 use lattirust_arithmetic::challenge_set::labrador_challenge_set::LabradorChallengeSet;
@@ -14,6 +13,7 @@ use relations::reduction::Reduction;
 use crate::binary_r1cs::prover::prove_reduction_binaryr1cs_labradorpr;
 use crate::binary_r1cs::util::BinaryR1CSCRS;
 use crate::binary_r1cs::verifier::verify_reduction_binaryr1cs_labradorpr;
+use crate::{nvtx_timed, nvtx_timed_pop};
 
 pub mod prover;
 #[cfg(test)]
@@ -36,17 +36,20 @@ where
 {
     fn iopattern(
         pp: &BinaryR1CSCRS<R>,
-        index_in_: &Self::IndexIn,
-        instance_in_: &Self::InstanceIn,
+        _index_in_: &Self::IndexIn,
+        _instance_in_: &Self::InstanceIn,
     ) -> IOPattern {
+        nvtx_timed!("iopattern");
         let k = pp.num_constraints;
         let secparam = pp.security_parameter;
-        IOPattern::new("reduction_binaryr1cs_principalrelation")
+        let pattern = IOPattern::new("reduction_binaryr1cs_principalrelation")
             .absorb_vector::<R>(pp.A.nrows(), "prover message 1 (t)")
             .squeeze_binary_matrix(secparam, k, "verifier message 1 (alpha)")
             .squeeze_binary_matrix(secparam, k, "verifier message 1 (beta)")
             .squeeze_binary_matrix(secparam, k, "verifier message 1 (gamma)")
-            .absorb_vector_canonical::<R::BaseRing>(secparam, "prover message 2 (g)")
+            .absorb_vector_canonical::<R::BaseRing>(secparam, "prover message 2 (g)");
+        nvtx_timed_pop!();
+        pattern
     }
 
     fn prove(
@@ -56,9 +59,12 @@ where
         witness: &Self::WitnessIn,
         merlin: &mut Merlin,
     ) -> ProofResult<(Self::IndexOut, Self::InstanceOut, Self::WitnessOut)> {
-        Ok(prove_reduction_binaryr1cs_labradorpr(
+        nvtx_timed!("prove");
+        let result = Ok(prove_reduction_binaryr1cs_labradorpr(
             pp, merlin, index, instance, witness,
-        ))
+        ));
+        nvtx_timed_pop!();
+        result
     }
 
     fn verify(
@@ -68,6 +74,9 @@ where
         arthur: &mut Arthur,
     ) -> ProofResult<(Self::IndexOut, Self::InstanceOut)>
     {
-        verify_reduction_binaryr1cs_labradorpr(arthur, pp, index_in, instance_in)
+        nvtx_timed!("verify");
+        let result = verify_reduction_binaryr1cs_labradorpr(arthur, pp, index_in, instance_in);
+        nvtx_timed_pop!();
+        result
     }
 }

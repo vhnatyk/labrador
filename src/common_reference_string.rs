@@ -14,6 +14,7 @@ use num_traits::{Float, ToPrimitive};
 use relations::principal_relation::Size;
 use serde::{Deserialize, Serialize};
 use tracing::info;
+use crate::{nvtx_timed, nvtx_timed_pop};
 
 /// Common reference string for one round of the LaBRADOR protocol
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -150,6 +151,7 @@ impl<R: PolyRing> CommonReferenceString<R> {
         num_constant_constraints: usize,
         rng: &mut Rng,
     ) -> CommonReferenceString<R> {
+        nvtx_timed!("CommonReferenceString::new");
         let d = R::dimension();
         let q = R::modulus();
         let log2_q: f64 = q.bits() as f64;
@@ -158,98 +160,110 @@ impl<R: PolyRing> CommonReferenceString<R> {
         info!("Using Z_q[X]/(X^d+1) with q={q} ({} bits), d={d}", log2_q);
         info!("Setting CRS parameters for n={n}, r={r}, d={d}, beta={beta:.1}, num_constraints={num_constraints}, num_constant_constraints={num_constant_constraints}");
 
-        let MAX_RECURSION_DEPTH = 7;
-        beta_sq *= f64::sqrt(128. / 30.).powi(MAX_RECURSION_DEPTH);
-        beta = beta_sq.sqrt();
-        info!(
-            "  Accounting for at most {MAX_RECURSION_DEPTH} recursion levels, use beta={beta:.1}"
-        );
+        let b = {
+            nvtx_timed!("adjust_beta_for_recursion");
+            let MAX_RECURSION_DEPTH = 7;
+            beta_sq *= f64::sqrt(128. / 30.).powi(MAX_RECURSION_DEPTH);
+            beta = beta_sq.sqrt();
+            info!(
+                "  Accounting for at most {MAX_RECURSION_DEPTH} recursion levels, use beta={beta:.1}"
+            );
+            nvtx_timed_pop!();
 
-        // Checks
-        assert!(beta < f64::sqrt(30. / 128.) * (q.to_f64().unwrap()) / 125.);
+            // Checks
+            assert!(beta < f64::sqrt(30. / 128.) * (q.to_f64().unwrap()) / 125.);
 
-        // Set decomposition basis
-        let s_sq = beta / ((r * n * d) as f64);
-        let s = s_sq.sqrt();
-        // standard deviation of the Z_q coefficients of the s vectors
-        info!("  s={s} (std deviation of coefficients of s-vector)");
-        // let tau = LabradorChallengeSet::<R>::VARIANCE_SUM_COEFFS;
+            nvtx_timed!("set_decomposition_basis");
+            // Set decomposition basis
+            let s_sq = beta / ((r * n * d) as f64);
+            let s = s_sq.sqrt();
+            // standard deviation of the Z_q coefficients of the s vectors
+            info!("  s={s} (std deviation of coefficients of s-vector)");
 
-        // ||z||_∞ <= r * ||c_i||_∞ * ||s_i||_∞  <= r * ||c_i||_∞ * ||s_i||_2
-        // b^2 must be < ||z||_∞ to be able to decompose each entry in z into 2 parts using standard (non-balanced) decomposition
-        let linf_norm_z =
-            r as u128 * LabradorChallengeSet::<R>::LINF_NORM * beta_sq.sqrt().floor() as u128;
-        let b = Self::ceil_to_even((linf_norm_z as f64).sqrt());
-        // let b = Self::round_to_even((s * (12. * r as f64 * tau).sqrt()).sqrt());
-        info!("  b={b} (main decomposition basis)");
-        assert!(b > 1);
-
-        // Set auxiliary decomposition bases
-        let (t1, b1) = Self::t1_b1(b);
-        info!("  b1={b1}, t1={t1} (first decomposition basis and decomposition length)");
-
-        let (t2, b2) = Self::t2_b2(r, n, beta_sq, b);
-        info!("  b2={b2}, t2={t2} (second decomposition basis and decomposition length)");
-
-        let num_aggregs = (128. / log2_q).ceil() as usize;
-        info!("  num_aggregs={num_aggregs} (ceil(128/log(q)))");
-
-        // Compute the norm bound for the next folded instance
-        let beta_prime = |k| Self::next_norm_bound_sq(r, n, beta_sq, k, b).sqrt();
-
-        let op_norm = LabradorChallengeSet::<R>::OPERATOR_NORM_THRESHOLD;
-        let norm_bound_1 = |kappa| {
-            // max(8T(b + 1)β′, 2(b + 1)β′ + 4T sqrt(128/30)β)
-            max_by(
-                8. * op_norm * (b + 1) as f64 * beta_prime(kappa),
-                2. * (b + 1) as f64 * beta_prime(kappa)
-                    + 4. * op_norm * f64::sqrt(128. / 30.) * beta,
-                f64::total_cmp,
-            )
+            // ||z||_∞ <= r * ||c_i||_∞ * ||s_i||_∞  <= r * ||c_i||_∞ * ||s_i||_2
+            // b^2 must be < ||z||_∞ to be able to decompose each entry in z into 2 parts using standard (non-balanced) decomposition
+            let linf_norm_z =
+                r as u128 * LabradorChallengeSet::<R>::LINF_NORM * beta_sq.sqrt().floor() as u128;
+            let b = Self::ceil_to_even((linf_norm_z as f64).sqrt());
+            info!("  b={b} (main decomposition basis)");
+            assert!(b > 1);
+            nvtx_timed_pop!();
+            b
         };
 
-        // Ensure MSIS_{n=k, d, q, beta_1, m=n} is hard (l_2 norm)
-        let mut msis_1 = MSIS {
-            h: 0, // Dummy value, will be set later
-            d,
-            q: q.clone(),
-            length_bound: 0., // Dummy value
-            w: n,
-            norm: Norm::L2,
+        let (t1, b1, t2, b2, num_aggregs) = {
+            nvtx_timed!("set_auxiliary_bases");
+            // Set auxiliary decomposition bases
+            let (t1, b1) = Self::t1_b1(b);
+            info!("  b1={b1}, t1={t1} (first decomposition basis and decomposition length)");
+
+            let (t2, b2) = Self::t2_b2(r, n, beta_sq, b);
+            info!("  b2={b2}, t2={t2} (second decomposition basis and decomposition length)");
+
+            let num_aggregs = (128. / log2_q).ceil() as usize;
+            info!("  num_aggregs={num_aggregs} (ceil(128/log(q)))");
+            nvtx_timed_pop!();
+            (t1, b1, t2, b2, num_aggregs)
         };
-        // let k = msis_1.upper_bound_h();
-        let k = msis::lattice_estimator::find_optimal_h_dynamic(&msis_1, norm_bound_1, 128).expect(format!("failed to find secure rank for {msis_1}. Are the witness vectors long enough in your system?").as_str());
-        // let k = msis::find_optimal_h(&msis_1, 128).expect(format!("failed to find secure rank for {msis_1}. Are there enough constraints in your system?").as_str());
-        // let k = msis_1.find_optimal_h_dynamic(norm_bound_1, SECPARAM).expect(format!("failed to find secure rank for {msis_1}. Are there enough constraints in your system?").as_str());
-        msis_1 = msis_1.with_h(k).with_length_bound(norm_bound_1(k));
-        info!(
-            "  k={k} for the MSIS instance {msis_1}  gives {} bits of security",
-            msis_1.security_level()
-        ); // TODO: silently assume that this gives us enough security, which it will for any reasonable parameters
-        info!("  Chose largest k={k} for the MSIS instance {msis_1}");
-        assert!(k > 0);
 
-        let mut msis_2 = MSIS {
-            h: 0, // Dummy value, will be set later
-            d,
-            q: q.clone(),
-            length_bound: 2. * beta_prime(k),
-            w: k,
-            norm: Norm::L2,
+        let (k, k1, k2) = {
+            nvtx_timed!("compute_norm_bounds");
+            // Compute the norm bound for the next folded instance
+            let beta_prime = |k| Self::next_norm_bound_sq(r, n, beta_sq, k, b).sqrt();
+
+            let op_norm = LabradorChallengeSet::<R>::OPERATOR_NORM_THRESHOLD;
+            let norm_bound_1 = |kappa| {
+                // max(8T(b + 1)β′, 2(b + 1)β′ + 4T sqrt(128/30)β)
+                max_by(
+                    8. * op_norm * (b + 1) as f64 * beta_prime(kappa),
+                    2. * (b + 1) as f64 * beta_prime(kappa)
+                        + 4. * op_norm * f64::sqrt(128. / 30.) * beta,
+                    f64::total_cmp,
+                )
+            };
+            nvtx_timed_pop!();
+
+            nvtx_timed!("compute_msis_params");
+            // Ensure MSIS_{n=k, d, q, beta_1, m=n} is hard (l_2 norm)
+            let mut msis_1 = MSIS {
+                h: 0, // Dummy value, will be set later
+                d,
+                q: q.clone(),
+                length_bound: 0., // Dummy value
+                w: n,
+                norm: Norm::L2,
+            };
+            // let k = msis_1.upper_bound_h();
+            let k = msis::lattice_estimator::find_optimal_h_dynamic(&msis_1, norm_bound_1, 128).expect(format!("failed to find secure rank for {msis_1}. Are the witness vectors long enough in your system?").as_str());
+            msis_1 = msis_1.with_h(k).with_length_bound(norm_bound_1(k));
+            info!(
+                "  k={k} for the MSIS instance {msis_1}  gives {} bits of security",
+                msis_1.security_level()
+            );
+            info!("  Chose largest k={k} for the MSIS instance {msis_1}");
+            assert!(k > 0);
+
+            let mut msis_2 = MSIS {
+                h: 0, // Dummy value, will be set later
+                d,
+                q: q.clone(),
+                length_bound: 2. * beta_prime(k),
+                w: k,
+                norm: Norm::L2,
+            };
+            let k1 = msis_h_128_l2(&msis_2).unwrap();
+            let k2 = k1;
+            msis_2 = msis_2.with_h(k1).with_length_bound(2. * beta_prime(k));
+            info!(
+                "  k1=k2={k1} for the MSIS instance {msis_2}  gives {} bits of security",
+                msis_2.security_level()
+            );
+            assert!(k > 1);
+            nvtx_timed_pop!();
+            (k, k1, k2)
         };
-        let k1 = msis_h_128_l2(&msis_2).unwrap(); // TODO: Switch back to lattice estimator
-        // let k1 = find_optimal_h(&msis_2, SECURITY_PARAMETER).expect(format!("failed to find secure rank for {msis_2}. Are there enough constraints in your system?").as_str());
-        let k2 = k1;
-        msis_2 = msis_2.with_h(k1).with_length_bound(2. * beta_prime(k));
-        info!(
-            "  k1=k2={k1} for the MSIS instance {msis_2}  gives {} bits of security",
-            msis_2.security_level()
-        );
-        assert!(k > 1);
 
-        // TODO: this only gives 125 bits of soundness error for SECPARAM = 128, how do we best document this?
-        // TODO: all params should be bigger to account for the slack of sqrt(128/30) per recursion level
-
+        nvtx_timed!("create_crs");
         let mut crs = Self {
             sec_param: 128,
             r,
@@ -274,6 +288,8 @@ impl<R: PolyRing> CommonReferenceString<R> {
             next_crs: None,
         };
         crs.next_crs = crs.next_crs().map(Box::new);
+        nvtx_timed_pop!(); // for create_crs
+        nvtx_timed_pop!(); // for CommonReferenceString::new
         crs
     }
 
@@ -329,6 +345,7 @@ impl<R: PolyRing> CommonReferenceString<R> {
 
     /// Generate optimal sizes for the next round of the LaBRADOR protocol
     pub(crate) fn next_size(&self) -> FoldedSize {
+        nvtx_timed!("CommonReferenceString::next_size");
         // Generate instance for next iteration of the protocol
         let size_zi = self.n;
         let z_decomp_len = 2;
@@ -343,26 +360,30 @@ impl<R: PolyRing> CommonReferenceString<R> {
             self.num_constraints, self.num_constant_constraints
         );
 
-        // Find nu, mu such that m * nu ≈ mu * n
-        // TODO: Can we find these more efficiently?
-        // TODO: Also, this is optimizing for proof size, maybe we want to only consider power-of-two values for n_next?
-        let mut min_diff = f64::infinity();
-        let mut best_mu = 0;
-        let mut best_nu = 0;
-        for mu in 1..size_t_g_h {
-            for nu in 1..size_z {
-                let diff = (((size_t_g_h as f64) / mu as f64)
-                    - ((size_z as f64) / ((z_decomp_len * nu) as f64)))
-                    .abs();
-                if diff < min_diff {
-                    min_diff = diff;
-                    best_mu = mu;
-                    best_nu = nu;
+        let (best_nu, best_mu) = {
+            nvtx_timed!("find_optimal_splitting");
+            // Find nu, mu such that m * nu ≈ mu * n
+            let mut min_diff = f64::infinity();
+            let mut best_mu = 0;
+            let mut best_nu = 0;
+            for mu in 1..size_t_g_h {
+                for nu in 1..size_z {
+                    let diff = (((size_t_g_h as f64) / mu as f64)
+                        - ((size_z as f64) / ((z_decomp_len * nu) as f64)))
+                        .abs();
+                    if diff < min_diff {
+                        min_diff = diff;
+                        best_mu = mu;
+                        best_nu = nu;
+                    }
                 }
             }
-        }
-        info!("Best splitting parameters for next round: nu = {best_nu}, mu = {best_mu}");
+            info!("Best splitting parameters for next round: nu = {best_nu}, mu = {best_mu}");
+            nvtx_timed_pop!();
+            (best_nu, best_mu)
+        };
 
+        nvtx_timed!("compute_next_size");
         let n_next = max(
             size_z.div_ceil(z_decomp_len * best_nu),
             size_t_g_h.div_ceil(best_mu),
@@ -412,15 +433,19 @@ impl<R: PolyRing> CommonReferenceString<R> {
         debug_assert!(best_nu * z_decomp_len >= folded_size.num_witnesses_z());
         debug_assert!(best_mu >= folded_size.num_witnesses_t_g_h());
 
+        nvtx_timed_pop!();
         folded_size
     }
 
     fn next_crs(&self) -> Option<CommonReferenceString<R>> {
+        nvtx_timed!("CommonReferenceString::next_crs");
         if self.recurse() {
+            nvtx_timed_pop!();
             return None;
         }
         let next_size = self.next_size();
-
-        Some(CommonReferenceString::<R>::new_for_size(next_size.size))
+        let result = Some(CommonReferenceString::<R>::new_for_size(next_size.size));
+        nvtx_timed_pop!();
+        result
     }
 }

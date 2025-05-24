@@ -18,6 +18,7 @@ use relations::Relation;
 
 use crate::common_reference_string::CommonReferenceString;
 use crate::shared::{compute_a__, compute_phi, compute_phi__, fold_instance, TranscriptView};
+use crate::{nvtx_timed, nvtx_timed_pop};
 
 pub fn verify_principal_relation_oneround<'a, R: PolyRing>(
     arthur: &mut Arthur,
@@ -32,8 +33,10 @@ where
     <<R as PolyRing>::BaseRing as WithSignedRepresentative>::SignedRepresentative:
         DecompositionFriendlySignedRepresentative,
 {
+    nvtx_timed!("verify_principal_relation_oneround");
     let transcript = verify_core(crs, index, instance, arthur)?;
     let (index_next, instance_next) = fold_instance(&crs, &instance, &transcript);
+    nvtx_timed_pop!();
     Ok((index_next, instance_next))
 }
 
@@ -48,19 +51,25 @@ where
     LabradorChallengeSet<R>: FromRandomBytes<R>,
     WeightedTernaryChallengeSet<R>: FromRandomBytes<R>,
 {
+    nvtx_timed!("verify_core");
     let (n, r) = (index.n, index.r);
     let num_constraints = instance.quad_dot_prod_funcs.len();
     let num_ct_constraints = instance.ct_quad_dot_prod_funcs.len();
 
+    nvtx_timed!("message_1");
     let u_1 = arthur
         .next_vector(crs.k1)
         .expect("error extracting prover message 1 from transcript");
+    nvtx_timed_pop!();
 
+    nvtx_timed!("challenge_1");
     let num_projections = 256;
     let Pi = arthur
         .challenge_matrices::<R, WeightedTernaryChallengeSet<R>>(num_projections, n, r)
         .expect("error extracting verifier message 1 from transcript");
+    nvtx_timed_pop!();
 
+    nvtx_timed!("message_2");
     let p = arthur
         .next_vector_canonical::<R::BaseRing>(num_projections)
         .expect("error extracting prover message 2 from transcript");
@@ -73,14 +82,18 @@ where
             norm_p_sq, p_norm_bound_sq
         )
     );
+    nvtx_timed_pop!();
 
+    nvtx_timed!("challenge_2");
     let psi = arthur
         .challenge_vectors::<R::BaseRing, R::BaseRing>(num_ct_constraints, crs.num_aggregs)
         .expect("error extracting verifier message 2 (psi) from transcript");
     let omega = arthur
         .challenge_vectors::<R::BaseRing, R::BaseRing>(num_projections, crs.num_aggregs)
         .expect("error extracting verifier message 2 (omega) from transcript");
+    nvtx_timed_pop!();
 
+    nvtx_timed!("message_3");
     let b__ = arthur
         .next_vec::<R>(crs.num_aggregs)
         .expect("error extracting prover message 3 from transcript");
@@ -92,27 +105,37 @@ where
         }
         check_eq!(b__[k].coefficients()[0], rhs_k);
     }
+    nvtx_timed_pop!();
 
+    nvtx_timed!("challenge_3");
     let alpha = arthur
         .challenge_vector::<R, R>(num_constraints)
         .expect("error extracting verifier message 3 (alpha) from transcript");
     let beta = arthur
         .challenge_vector::<R, R>(crs.num_aggregs)
         .expect("error extracting verifier message 3 (beta) from transcript");
+    nvtx_timed_pop!();
 
+    nvtx_timed!("message_4");
     let u_2 = arthur
         .next_vector(crs.k2)
         .expect("error extracting prover message 4 from transcript");
+    nvtx_timed_pop!();
 
+    nvtx_timed!("challenge_4");
     let c = arthur
         .challenge_vec::<R, LabradorChallengeSet<R>>(crs.r)
         .expect("error extracting verifier message 4 from transcript");
+    nvtx_timed_pop!();
 
+    nvtx_timed!("compute_phi");
     // Compute phi
     let phi__ = compute_phi__(crs, index, instance, &Pi, &psi, &omega);
     let phi = compute_phi(crs, instance, &alpha, &beta, &phi__);
     let a__ = compute_a__(crs, instance, &psi);
+    nvtx_timed_pop!();
 
+    nvtx_timed_pop!();
     Ok(TranscriptView {
         u_1,
         b__,
@@ -138,6 +161,7 @@ where
     <<R as PolyRing>::BaseRing as WithSignedRepresentative>::SignedRepresentative:
         DecompositionFriendlySignedRepresentative,
 {
+    nvtx_timed!("verify_principal_relation");
     let mut index_curr = index.clone();
     let mut instance_curr = instance.clone();
 
@@ -151,10 +175,12 @@ where
     match PrincipalRelation::<R>::is_satisfied_err(&index_curr, &instance_curr, &witness) {
         Ok(_) => {
             debug!("└ Verifier::verify_principal_relation: OK");
+            nvtx_timed_pop!();
             Ok(())
         }
         Err(e) => {
             debug!("└ Verifier::verify_principal_relation: ERROR {}", e);
+            nvtx_timed_pop!();
             Err(ProofError::InvalidProof)
         }
     }

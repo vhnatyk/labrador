@@ -4,6 +4,7 @@ pub mod iopattern;
 pub mod prover;
 pub mod shared;
 pub mod util;
+pub mod utils2;
 pub mod verifier;
 mod test;
 //pub mod r1cs;

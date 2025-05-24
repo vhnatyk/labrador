@@ -24,6 +24,7 @@ use crate::shared::{
     compute_a__, compute_phi, compute_phi__, fold_instance, Layouter, TranscriptView,
 };
 use crate::util::*;
+use crate::{nvtx_timed, nvtx_timed_pop};
 
 pub fn prove_principal_relation_oneround<'a, R: PolyRing>(
     merlin: &'a mut Merlin,
@@ -40,6 +41,7 @@ where
         DecompositionFriendlySignedRepresentative,
     <R as TryFrom<u128>>::Error: Debug,
 {
+    nvtx_timed!("prove_principal_relation_oneround");
     // Check dimensions and norms
     debug_assert!(index.is_wellformed_instance(instance).is_ok());
     debug_assert!(index.is_wellformed_witness(witness).is_ok());
@@ -55,6 +57,7 @@ where
     let num_constraints = index.num_constraints;
     let num_ct_constraints = index.num_constant_constraints;
 
+    nvtx_timed!("message_1");
     // Message 1
     // let s_mat = Matrix::<R>::from_columns(&witness.s); // s_mat = [s_1 | ... | s_r] in Rq^{n x r}
     // let t = &crs.A * &s_mat; // t = A * s_mat in Rq^{k x r}
@@ -76,14 +79,18 @@ where
     merlin
         .absorb_vector(&u_1)
         .expect("error absorbing prover message 1");
+    nvtx_timed_pop!();
 
     // Challenge 1
+    nvtx_timed!("challenge_1");
     let num_projections = 256; // TODO: set in CRS
     let Pi = merlin
         .challenge_matrices::<R, WeightedTernaryChallengeSet<R>>(num_projections, crs.n, crs.r)
         .expect("error squeezing verifier message 1"); // r matrices in R^{num_projections x n}
+    nvtx_timed_pop!();
 
     // Message 2
+    nvtx_timed!("message_2");
     let mut p = Vector::<R::BaseRing>::zeros(num_projections);
     for i in 0..crs.r {
         let s_i_vec = R::flattened(&witness.s[i]); // in R::BaseRing^{n*d}
@@ -97,16 +104,20 @@ where
     merlin
         .absorb_vector_canonical::<R::BaseRing>(&p)
         .expect("error absorbing prover message 2");
+    nvtx_timed_pop!();
 
     // Challenge 2
+    nvtx_timed!("challenge_2");
     let psi = merlin
         .challenge_vectors::<R::BaseRing, R::BaseRing>(num_ct_constraints, crs.num_aggregs)
         .expect("error squeezing verifier message 2 (psi)");
     let omega = merlin
         .challenge_vectors::<R::BaseRing, R::BaseRing>(256, crs.num_aggregs)
         .expect("error squeezing verifier message 2 (omega)");
+    nvtx_timed_pop!();
 
     // Message 3
+    nvtx_timed!("message_3");
     let phi__ = compute_phi__(crs, index, instance, &Pi, &psi, &omega);
     let mut b__ = vec![R::zero(); crs.num_aggregs];
     let a__ = compute_a__(crs, instance, &psi);
@@ -123,16 +134,20 @@ where
     merlin
         .absorb_vec(&b__)
         .expect("error absorbing prover message 3");
+    nvtx_timed_pop!();
 
     // Challenge 3
+    nvtx_timed!("challenge_3");
     let alpha = merlin
         .challenge_vector::<R, R>(num_constraints)
         .expect("error squeezing verifier message 3 (alpha)");
     let beta = merlin
         .challenge_vector::<R, R>(crs.num_aggregs)
         .expect("error squeezing verifier message 3 (beta)");
+    nvtx_timed_pop!();
 
     // Message 4
+    nvtx_timed!("message_4");
     let phi = compute_phi(crs, instance, &alpha, &beta, &phi__);
 
     let two_inv = R::inverse(&R::try_from(2u64).unwrap()).unwrap();
@@ -151,13 +166,17 @@ where
     merlin
         .absorb_vector(&u_2)
         .expect("error absorbing prover message 4");
+    nvtx_timed_pop!();
 
     // Challenge 4
+    nvtx_timed!("challenge_4");
     let c = merlin
         .challenge_vec::<R, LabradorChallengeSet<R>>(crs.r)
         .expect("error squeezing verifier message 4");
+    nvtx_timed_pop!();
 
     // Compute next instance
+    nvtx_timed!("compute_next_instance");
     let transcript = TranscriptView {
         u_1,
         b__,
@@ -170,8 +189,10 @@ where
     };
     let (index_next, instance_next) = fold_instance(&crs, &instance, &transcript);
     let next_size = crs.next_size();
+    nvtx_timed_pop!();
 
     // Compute next witnes
+    nvtx_timed!("compute_next_witness");
     let z: Vector<R> = witness
         .clone()
         .s
@@ -191,6 +212,9 @@ where
     layouter.set_h(H_flat.as_slice());
 
     let witness_next = Witness::<R>::new(layouter.split());
+    nvtx_timed_pop!();
+
+    nvtx_timed_pop!();
 
     Ok((index_next, instance_next, witness_next))
 }
@@ -210,6 +234,7 @@ where
         DecompositionFriendlySignedRepresentative,
     <R as TryFrom<u128>>::Error: Debug,
 {
+    nvtx_timed!("prove_principal_relation");
     let mut index_curr = index.clone();
     let mut instance_curr = instance.clone();
     let mut witness_curr = witness.clone();
@@ -225,5 +250,6 @@ where
         crs = crs.next_crs.as_ref().unwrap();
     }
     // TODO: add index/instance to the transcript
+    nvtx_timed_pop!();
     Ok(merlin.transcript())
 }

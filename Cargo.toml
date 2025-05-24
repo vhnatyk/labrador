@@ -6,10 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-lattirust-arithmetic = { version = "0.0.1-alpha", git = "https://github.com/lattirust/lattirust" }
-lattice-estimator = { version = "0.0.1-alpha", git = "https://github.com/lattirust/lattirust" }
-lattirust-util = { version = "0.0.1-alpha", git = "https://github.com/lattirust/lattirust" }
-relations = { version = "0.0.1-alpha", git = "https://github.com/lattirust/lattirust" }
+lattirust-arithmetic = { path = "temp_lattirust/lattirust-arithmetic" }
+lattice-estimator = { path = "temp_lattirust/lattice-estimator" }
+lattirust-util = { path = "temp_lattirust/lattirust-util" }
+relations = { path = "temp_lattirust/relations" }
 ark-std = "0.5.0"
 log = "0.4.22"
 nimue = "0.1.0"
@@ -22,3 +22,4 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 indicatif = "0.17.9"
 derive_more = "2.0.1"
+nvtx = "*"

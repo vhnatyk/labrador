@@ -687,6 +687,7 @@ dependencies = [
  "nimue",
  "num-bigint",
  "num-traits",
+ "nvtx",
  "pretty_env_logger",
  "rayon",
  "relations",
@@ -698,7 +699,6 @@ dependencies = [
 [[package]]
 name = "lattice-estimator"
 version = "0.0.1-alpha"
-source = "git+https://github.com/lattirust/lattirust#91ce8c0166e445d550b5fa07eb21becf81b66778"
 dependencies = [
  "log",
  "num-bigint",
@@ -708,7 +708,6 @@ dependencies = [
 [[package]]
 name = "lattirust-arithmetic"
 version = "0.0.1-alpha"
-source = "git+https://github.com/lattirust/lattirust#91ce8c0166e445d550b5fa07eb21becf81b66778"
 dependencies = [
  "ark-ff",
  "ark-serialize",
@@ -728,6 +727,7 @@ dependencies = [
  "nalgebra-sparse",
  "nimue",
  "num-bigint",
+ "num-integer",
  "num-traits",
  "paste",
  "rand 0.9.1",
@@ -741,7 +741,6 @@ dependencies = [
 [[package]]
 name = "lattirust-util"
 version = "0.0.1-alpha"
-source = "git+https://github.com/lattirust/lattirust#91ce8c0166e445d550b5fa07eb21becf81b66778"
 dependencies = [
  "log",
 ]
@@ -913,6 +912,15 @@ name = "number_prefix"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
+
+[[package]]
+name = "nvtx"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad2e855e8019f99e4b94ac33670eb4e4f570a2e044f3749a0b2c7f83b841e52c"
+dependencies = [
+ "cc",
+]
 
 [[package]]
 name = "once_cell"
@@ -1125,7 +1133,6 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 [[package]]
 name = "relations"
 version = "0.0.1-alpha"
-source = "git+https://github.com/lattirust/lattirust#91ce8c0166e445d550b5fa07eb21becf81b66778"
 dependencies = [
  "anyhow",
  "ark-relations",

@@ -21,7 +21,7 @@ fn init() {
     let _ = tracing_subscriber::fmt::fmt()
         .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
         .event_format(format().compact())
-        .with_env_filter("none,labrador=trace")
+        // .with_env_filter("none,labrador=trace,lattirust_arithmetic=trace,relations=trace")
         .try_init();
 }
 
