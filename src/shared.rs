@@ -1,4 +1,5 @@
 #![allow(non_snake_case)]
+#![macro_use]
 
 use lattirust_arithmetic::decomposition::DecompositionFriendlySignedRepresentative;
 use lattirust_arithmetic::linear_algebra::{Matrix, SymmetricMatrix, Vector};
@@ -8,6 +9,7 @@ use relations::principal_relation::{Index, Instance, QuadraticConstraint, Size};
 
 use crate::common_reference_string::{CommonReferenceString, FoldedSize};
 use crate::util::{flatten_symmetric_matrix, mul_basescalar_vector};
+use crate::{nvtx_timed, nvtx_timed_pop};
 
 /// A view of the transcript of one execution of the core Labrador protocol
 pub struct TranscriptView<R: PolyRing> {
@@ -115,6 +117,8 @@ where
     <<R as PolyRing>::BaseRing as WithSignedRepresentative>::SignedRepresentative:
         DecompositionFriendlySignedRepresentative,
 {
+    nvtx_timed!("fold_instance");
+    nvtx_timed!("generate_instance_for_next_iteration");
     // Generate instance for next iteration of the protocol
     let next_size = crs.next_size();
 
@@ -140,9 +144,11 @@ where
     for i in 1..crs.t2 {
         b2_pows.push(b2_ring * b2_pows[i - 1]);
     }
+    nvtx_timed_pop!();
 
     // Constraints for Az = sum_{i in [r]} c_i t_i
     {
+        nvtx_timed!("fold_instance_az_constraints");
         for l in 0..crs.k {
             let mut layouter = Layouter::<R>::new(next_size);
             let A_l = crs.A.row(l).transpose();
@@ -162,8 +168,10 @@ where
                 layouter.split(),
             ));
         }
+        nvtx_timed_pop!();
     }
 
+    nvtx_timed!("fold_instance_c_prods");
     let c_prods = SymmetricMatrix::<R>::from_fn(crs.r, |i, j| {
         if i == j {
             transcript.c[i] * transcript.c[j]
@@ -178,9 +186,11 @@ where
     let c_prods_b2: Vec<R> = (0..crs.t2)
         .flat_map(|k| (c_prods_vec.clone() * b2_pows[k]).as_slice().to_vec())
         .collect();
+    nvtx_timed_pop!();
 
     // Constraint for <z, z> = sum_{i, j in [r]} g_ij c_i c_j
     {
+        nvtx_timed!("fold_instance_zz_constraints");
         // <z, z> = <[z^(0) + b*z^(1)], [z^(0) + b*z^(1)]>
         let mut A = SymmetricMatrix::<R>::zero(r_next);
         let b_sq = R::try_from(crs.b * crs.b).expect(
@@ -205,10 +215,12 @@ where
             layouter.split(),
             R::zero(),
         ));
+        nvtx_timed_pop!();
     }
 
     // Constraint for sum_{i in [r]} <phi_i, z> c_i = sum_{i, j in [r]} h_ij c_i c_j
     {
+        nvtx_timed!("fold_instance_phi_constraints");
         let mut layouter = Layouter::<R>::new(next_size);
 
         let phi_lc_0: Vector<R> = transcript
@@ -228,10 +240,12 @@ where
         quad_dot_prod_funcs_next.push(QuadraticConstraint::<R>::new_homogeneous_linear(
             layouter.split(),
         ));
+        nvtx_timed_pop!();
     }
 
     // Constraint for sum_{i,j in [r]} a_ij * g_ij + sum_{i in [r]} h_ii = b
     {
+        nvtx_timed!("fold_instance_sum_constraints");
         // Compute a_ij = sum_{k in [K]} alpha_k * a_ij^(k) + sum_{k in [K']} beta_k * a_ij''^(k), where a_ij''^(k) = sum_{l in [L]} psi_l^(k) * a_ij'^(l)
         let a__ = &transcript.a__;
 
@@ -282,10 +296,12 @@ where
         }
 
         quad_dot_prod_funcs_next.push(QuadraticConstraint::<R>::new_linear(layouter.split(), b));
+        nvtx_timed_pop!();
     }
 
     // Constraints for u_1
     {
+        nvtx_timed!("fold_instance_u1_constraints");
         for l in 0..crs.k1 {
             let mut layouter = Layouter::<R>::new(next_size);
             layouter.set_t(&crs.B.row(l).transpose().as_slice());
@@ -296,10 +312,12 @@ where
                 transcript.u_1[l],
             ));
         }
+        nvtx_timed_pop!();
     }
 
     // Constraints for u_2
     {
+        nvtx_timed!("fold_instance_u2_constraints");
         for l in 0..crs.k2 {
             let mut layouter = Layouter::<R>::new(next_size);
             layouter.set_h(crs.D.row(l).transpose().as_slice());
@@ -309,8 +327,10 @@ where
                 transcript.u_2[l],
             ));
         }
+        nvtx_timed_pop!();
     }
 
+    nvtx_timed!("fold_instance_compute_instance_next");
     let instance_next = Instance::<R> {
         quad_dot_prod_funcs: quad_dot_prod_funcs_next,
         ct_quad_dot_prod_funcs: vec![],
@@ -330,6 +350,9 @@ where
         num_constant_constraints: instance_next.num_const_constraints(),
     };
     let index_next = Index::<R>::new(&size_next);
+    nvtx_timed_pop!();
+
+    nvtx_timed_pop!();
     (index_next, instance_next)
 }
 
@@ -341,6 +364,7 @@ pub fn compute_phi__<R: PolyRing>(
     psi: &Vec<Vector<R::BaseRing>>,
     omega: &Vec<Vector<R::BaseRing>>,
 ) -> Vec<Vec<Vector<R>>> {
+    nvtx_timed!("compute_phi__");
     let mut phi__ = vec![vec![Vector::<R>::zeros(index.n); index.r]; crs.num_aggregs];
     for k in 0..crs.num_aggregs {
         for i in 0..index.r {
@@ -356,6 +380,7 @@ pub fn compute_phi__<R: PolyRing>(
             }
         }
     }
+    nvtx_timed_pop!();
     phi__
 }
 
@@ -366,6 +391,7 @@ pub fn compute_phi<R: PolyRing>(
     beta: &Vector<R>,
     phi__: &Vec<Vec<Vector<R>>>,
 ) -> Vec<Vector<R>> {
+    nvtx_timed!("compute_phi");
     let phi = (0..crs.r)
         .into_iter()
         .map(|i| {
@@ -379,6 +405,7 @@ pub fn compute_phi<R: PolyRing>(
             phi_i
         })
         .collect::<Vec<_>>();
+    nvtx_timed_pop!();
     phi
 }
 
@@ -387,7 +414,8 @@ pub fn compute_a__<R: PolyRing>(
     instance: &Instance<R>,
     psi: &Vec<Vector<R::BaseRing>>,
 ) -> Vec<SymmetricMatrix<R>> {
-    psi.into_iter()
+    nvtx_timed!("compute_a__");
+    let result = psi.into_iter()
         .map(|psi_k| {
             psi_k
                 .into_iter()
@@ -404,5 +432,7 @@ pub fn compute_a__<R: PolyRing>(
                 })
                 .unwrap()
         })
-        .collect()
+        .collect();
+    nvtx_timed_pop!();
+    result
 }
