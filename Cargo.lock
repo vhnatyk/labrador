@@ -729,6 +729,7 @@ dependencies = [
  "num-bigint",
  "num-integer",
  "num-traits",
+ "nvtx",
  "paste",
  "rand 0.9.1",
  "rayon",

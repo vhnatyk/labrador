@@ -15,10 +15,12 @@ use lattirust_arithmetic::linear_algebra::Vector;
 
 use crate::r1cs::util::{R1CSCRS, R1CSInstance};
 use crate::util::{concat, flatten_vec_vector};
+use crate::{nvtx_timed, nvtx_timed_pop};
 
 pub type Z64 = Zq2<274177, 67280421310721>; // Q = 2^64+1
 
 fn enc<R: PolyRing>(vec: &Vector<Z64>) -> Vector<R> {
+    nvtx_timed!("enc");
     todo!()
 }
 
@@ -41,6 +43,7 @@ where
     LabradorChallengeSet<R>: FromRandomBytes<R>,
     WeightedTernaryChallengeSet<R>: FromRandomBytes<R>,
 {
+    nvtx_timed!("prove_r1cs");
     let (A, B, C) = (&instance.A, &instance.B, &instance.C);
     let w = witness;
     let (k, n) = (A.nrows(), A.ncols());
@@ -99,5 +102,7 @@ where
 
     // merlin.ratchet()?;
     // prove_principal_relation(merlin, &instance_pr, &witness_pr, &crs.pr_crs())
-    Ok(merlin.transcript())
+    let result = Ok(merlin.transcript());
+    nvtx_timed_pop!();
+    result
 }

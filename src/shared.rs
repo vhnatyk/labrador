@@ -118,7 +118,7 @@ where
         DecompositionFriendlySignedRepresentative,
 {
     nvtx_timed!("fold_instance");
-    nvtx_timed!("generate_instance_for_next_iteration");
+    nvtx_timed!("fold_instance_generate_instance_for_next_iteration");
     // Generate instance for next iteration of the protocol
     let next_size = crs.next_size();
 

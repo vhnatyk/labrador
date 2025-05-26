@@ -11,6 +11,7 @@ use lattirust_arithmetic::linear_algebra::Vector;
 
 use crate::binary_r1cs::util::Z2;
 use crate::common_reference_string::{CommonReferenceString, SECURITY_PARAMETER};
+use crate::{nvtx_timed, nvtx_timed_pop};
 
 pub struct R1CSCRS<R: PolyRing> {
     pub A: Matrix<R>,
@@ -24,6 +25,7 @@ pub struct R1CSCRS<R: PolyRing> {
 
 impl<R: PolyRing> R1CSCRS<R> {
     pub fn new(num_constraints: usize, num_variables: usize) -> Self {
+        nvtx_timed!("R1CSCRS::new");
         let k = num_constraints;
         let n = num_variables;
         let d = R::dimension();
@@ -68,7 +70,7 @@ impl<R: PolyRing> R1CSCRS<R> {
         let l = (SECURITY_PARAMETER - 1).div_ceil(18); // protocol has soundness 2*p^-l, where p ~= 2^18 is the smallest prime factor of 2^64 + 1
 
         let rng = &mut ark_std::rand::rngs::OsRng::default();
-        Self {
+        let result = Self {
             A: Matrix::<R>::rand(m.div_ceil(d), (3 * k + n).div_ceil(d), rng),
             B: Matrix::<R>::rand(m.div_ceil(d), l * k, rng),
             num_constraints,
@@ -76,10 +78,13 @@ impl<R: PolyRing> R1CSCRS<R> {
             m,
             m_d,
             l,
-        }
+        };
+        nvtx_timed_pop!();
+        result
     }
 
     pub fn pr_crs(&self) -> CommonReferenceString<R> {
+        nvtx_timed!("R1CSCRS::pr_crs");
         let d = R::dimension();
         let r_pr: usize = 8;
         let n_pr = self.num_variables.div_ceil(d);
@@ -88,23 +93,28 @@ impl<R: PolyRing> R1CSCRS<R> {
         let num_quad_constraints = self.m.div_ceil(d) + 3 * n_pr;
         let num_constant_quad_constraints = 4 + 1 + SECURITY_PARAMETER;
 
-        CommonReferenceString::<R>::new(
+        let result = CommonReferenceString::<R>::new(
             r_pr,
             n_pr,
             norm_bound,
             num_quad_constraints,
             num_constant_quad_constraints,
             &mut thread_rng(),
-        )
+        );
+        nvtx_timed_pop!();
+        result
     }
 }
 
 pub fn Z2_to_R_vec<R: Ring>(vec: &Vec<Z2>) -> Vec<R> {
-    vec.iter()
+    nvtx_timed!("Z2_to_R_vec");
+    let result = vec
+        .iter()
         .map(|x| if x.is_zero() { R::zero() } else { R::one() })
-        .collect()
+        .collect();
+    nvtx_timed_pop!();
+    result
 }
-
 
 pub struct R1CSInstance<R: Scalar> {
     // TODO: use sparse matrices instead

@@ -18,6 +18,7 @@ use relations::principal_relation::{
 
 use crate::common_reference_string::CommonReferenceString;
 use crate::util::{basis_vector, embed};
+use crate::{nvtx_timed, nvtx_timed_pop};
 
 const SECURITY_PARAMETER: usize = 128;
 
@@ -40,6 +41,7 @@ pub struct BinaryR1CSCRS<R: PolyRing> {
 
 impl<R: PolyRing> BinaryR1CSCRS<R> {
     pub fn new(num_constraints: usize, num_variables: usize) -> Self {
+        nvtx_timed!("BinaryR1CSCRS::new");
         let k = num_constraints;
         let n = num_variables;
         let d = R::dimension();
@@ -103,17 +105,20 @@ impl<R: PolyRing> BinaryR1CSCRS<R> {
         let rng = &mut rand::thread_rng();
 
         let commitment_output_size = h.div_ceil(d);
-        Self {
+        let result = Self {
             A: Matrix::<R>::rand(commitment_output_size, (3 * k + n).div_ceil(d), rng),
             num_constraints,
             num_variables,
             commitment_output_size,
             core_crs: None, //Self::pr_crs(num_variables, commitment_output_size),
             security_parameter: SECURITY_PARAMETER,
-        }
+        };
+        nvtx_timed_pop!();
+        result
     }
 
     pub fn pr_index(num_variables: usize, commitment_output_size: usize) -> Index<R> {
+        nvtx_timed!("BinaryR1CSCRS::pr_index");
         let d = R::dimension();
         let r_pr: usize = 8;
         let n_pr = num_variables.div_ceil(d);
@@ -129,10 +134,13 @@ impl<R: PolyRing> BinaryR1CSCRS<R> {
             num_constraints: num_quad_constraints,
             num_constant_constraints: num_constant_quad_constraints,
         };
-        Index::<R>::new(&size)
+        let result = Index::<R>::new(&size);
+        nvtx_timed_pop!();
+        result
     }
 
     pub fn pr_crs(num_variables: usize, commitment_output_size: usize) -> CommonReferenceString<R> {
+        nvtx_timed!("BinaryR1CSCRS::pr_crs");
         let d = R::dimension();
         let r_pr: usize = 8;
         let n_pr = num_variables.div_ceil(d);
@@ -142,14 +150,16 @@ impl<R: PolyRing> BinaryR1CSCRS<R> {
         let num_constant_quad_constraints = 4 + 1 + SECURITY_PARAMETER;
 
         let rng = &mut rand::thread_rng();
-        CommonReferenceString::<R>::new(
+        let result = CommonReferenceString::<R>::new(
             r_pr,
             n_pr,
             norm_bound,
             num_quad_constraints,
             num_constant_quad_constraints,
             rng,
-        )
+        );
+        nvtx_timed_pop!();
+        result
     }
 }
 
@@ -165,6 +175,7 @@ pub struct BinaryR1CSTranscript<R: PolyRing> {
 
 /// Express the constraint <alpha_i, a> = 0 as a constraint on the polynomial <alphaR_i, a_R> = 0, where alphaR_i is the element of R such that the constant term of alphaR_i * a_R (as polynomial multiplication over R) is equal to <alpha_i, a>
 fn embed_Zqlinear_Rqlinear<R: PolyRing>(alpha_i: &Vector<Z2>, k: usize, n_pr: usize) -> Vector<R> {
+    nvtx_timed!("embed_Zqlinear_Rqlinear");
     let mut phi_a_idx = Vec::<R>::with_capacity(n_pr);
     let d = R::dimension();
     let k_ = k.div_ceil(d);
@@ -179,7 +190,9 @@ fn embed_Zqlinear_Rqlinear<R: PolyRing>(alpha_i: &Vector<Z2>, k: usize, n_pr: us
         }
         phi_a_idx.push(R::from(coeffs));
     }
-    Vector::<R>::from(phi_a_idx)
+    let result = Vector::<R>::from(phi_a_idx);
+    nvtx_timed_pop!();
+    result
 }
 
 pub fn reduce<R: PolyRing>(
@@ -188,6 +201,7 @@ pub fn reduce<R: PolyRing>(
 ) -> (Index<R>, Instance<R>)
 where
 {
+    nvtx_timed!("reduce");
     let (k, n) = (pp.num_constraints, pp.num_variables);
     let d = R::dimension();
     assert_eq!(k, n, "the current implementation only support k = n"); // TODO: remove this restriction by splitting a,b,c or w into multiple vectors
@@ -315,5 +329,7 @@ where
         ct_quad_dot_prod_funcs,
     };
 
-    (new_index, new_instance)
+    let result = (new_index, new_instance);
+    nvtx_timed_pop!();
+    result
 }

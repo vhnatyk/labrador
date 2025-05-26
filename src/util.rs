@@ -8,73 +8,99 @@ use num_traits::{One, Zero};
 use lattirust_arithmetic::linear_algebra::{Matrix, Scalar, SymmetricMatrix, Vector};
 use lattirust_arithmetic::ring::Ring;
 use lattirust_arithmetic::ring::{PolyRing, Z2};
+use crate::{nvtx_timed, nvtx_timed_pop};
 
 pub fn commit<R: Ring>(A: &Matrix<R>, s: &Vector<R>) -> Vector<R> {
-    A * s
+    nvtx_timed!("commit");
+    let result = A * s;
+    nvtx_timed_pop!();
+    result
 }
 
 pub fn flatten_vec_vector<R: Ring>(v: &Vec<Vector<R>>) -> Vec<R> {
+    nvtx_timed!("flatten_vec_vector");
     let mut res = Vec::<R>::with_capacity(v.len() * v[0].len());
     for v_i in v {
         res.extend(v_i.as_slice());
     }
+    nvtx_timed_pop!();
     res
 }
 
 pub fn flatten_vec_vec_vector<R: Ring>(v: &Vec<Vec<Vector<R>>>) -> Vector<R> {
+    nvtx_timed!("flatten_vec_vec_vector");
     let res = v
         .iter()
         .flat_map(|v| flatten_vec_vector(&v))
         .collect::<Vec<_>>();
+    nvtx_timed_pop!();
     Vector::<R>::from_vec(res)
 }
 
 pub fn flatten_symmetric_matrix<R: Ring>(v: &SymmetricMatrix<R>) -> Vec<R> {
-    v.to_vec()
+    nvtx_timed!("flatten_symmetric_matrix");
+    let result = v.to_vec();
+    nvtx_timed_pop!();
+    result
 }
 
 pub fn flatten_vec_symmetric_matrix<R: Ring>(v: &Vec<SymmetricMatrix<R>>) -> Vector<R> {
+    nvtx_timed!("flatten_vec_symmetric_matrix");
     let res = v
         .iter()
         .flat_map(|v| flatten_symmetric_matrix(&v))
         .collect::<Vec<_>>();
+    nvtx_timed_pop!();
     Vector::<R>::from_vec(res)
 }
 
 pub fn unflatten_symmetric_matrix<R: Ring>(v: &[R], n: usize) -> SymmetricMatrix<R> {
+    nvtx_timed!("unflatten_symmetric_matrix");
     let mut chunks = Vec::<Vec<R>>::with_capacity(n);
     for i in 0..n {
         let start = (i * (i + 1)) / 2;
         let end = ((i + 1) * (i + 2)) / 2;
         chunks.push(v[start..end].to_vec());
     }
+    nvtx_timed_pop!();
     SymmetricMatrix::<R>::from(chunks)
 }
 
 pub fn concat<R: Clone + Scalar>(vecs: &[&[R]]) -> Vector<R> {
+    nvtx_timed!("concat");
     let mut vals = Vec::<R>::with_capacity(vecs.iter().map(|v| v.len()).sum());
     for v in vecs {
         vals.extend_from_slice(v);
     }
+    nvtx_timed_pop!();
     Vector::<R>::from_vec(vals)
 }
 
 pub fn shift_right<R: Ring>(v: &[R], shift: usize) -> Vector<R> {
+    nvtx_timed!("shift_right");
     let mut res = vec![R::zero(); shift];
     res.extend(v);
+    nvtx_timed_pop!();
     Vector::<R>::from_vec(res)
 }
 
 pub fn mul_matrix_basescalar<R: PolyRing>(A: &Matrix<R>, x: R::BaseRing) -> Matrix<R> {
-    A.map(|a_ij| a_ij * x)
+    nvtx_timed!("mul_matrix_basescalar");
+    let result = A.map(|a_ij| a_ij * x);
+    nvtx_timed_pop!();
+    result
 }
 
 pub fn mul_basescalar_vector<R: PolyRing>(s: R::BaseRing, A: &Vector<R>) -> Vector<R> {
-    A.map(|a_ij| a_ij * s)
+    // nvtx_timed!("mul_basescalar_vector");
+    let result = A.map(|a_ij| a_ij * s);
+    // nvtx_timed_pop!();
+    result
 }
 
 /// Compute $\sum_{i,j \in \[r\]} A_ij c_i  c_j$
 pub fn linear_combination_symmetric_matrix<R: Ring>(A: &SymmetricMatrix<R>, c: &[R]) -> R {
+    nvtx_timed!("linear_combination_symmetric_matrix");
     let n = A.size();
     debug_assert_eq!(c.len(), n);
     let mut lc = R::zero();
@@ -83,11 +109,13 @@ pub fn linear_combination_symmetric_matrix<R: Ring>(A: &SymmetricMatrix<R>, c: &
             lc += A[(i, j)] * c[i] * c[j];
         }
     }
+    nvtx_timed_pop!();
     lc
 }
 
 /// Reinterprets a vector of k = k' * d binary coefficients as k' vectors of d binary coefficients, represented as a vector of k' elements of the polynomial ring R with dimension d.
 pub fn lift<R: PolyRing>(vec: &Vector<Z2>) -> Vector<R> {
+    nvtx_timed!("lift");
     let d = R::dimension();
     debug_assert_eq!(
         vec.len() % d,
@@ -101,6 +129,7 @@ pub fn lift<R: PolyRing>(vec: &Vector<Z2>) -> Vector<R> {
         .chunks(d)
         .map(|chunk| R::from(chunk.iter().copied().map(embed).collect::<Vec<_>>()))
         .collect();
+    nvtx_timed_pop!();
     Vector::<R>::from_vec(coeffs)
 }
 
@@ -115,9 +144,11 @@ pub fn embed<R: Zero + One>(x: Z2) -> R {
 }
 
 pub fn basis_vector<R: PolyRing>(i: usize, n: usize) -> Vector<R> {
+    nvtx_timed!("basis_vector");
     debug_assert!(i < n, "i = {} must be less than n = {}", i, n);
     let mut coeffs = vec![R::zero(); n];
     coeffs[i] = R::one();
+    nvtx_timed_pop!();
     Vector::<R>::from_vec(coeffs)
 }
 
@@ -132,10 +163,13 @@ where
     <PR::BaseRing as WithSignedRepresentative>::SignedRepresentative:
         DecompositionFriendlySignedRepresentative,
 {
+    nvtx_timed!("decompose_symmetric_matrix");
     let vec = flatten_symmetric_matrix(mat);
     let decomp = decompose_balanced_vec_polyring(&vec, b, padding_size);
-    decomp
+    let result = decomp
         .into_iter()
         .map(|v_i| unflatten_symmetric_matrix(&v_i.as_slice(), mat.size()))
-        .collect()
+        .collect();
+    nvtx_timed_pop!();
+    result
 }

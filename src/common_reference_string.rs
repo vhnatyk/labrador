@@ -132,15 +132,18 @@ impl<R: PolyRing> CommonReferenceString<R> {
     }
 
     pub fn new_for_size(size: Size) -> CommonReferenceString<R> {
+        nvtx_timed!("new_for_size");
         let mut rng = rand::thread_rng();
-        Self::new(
+        let result = Self::new(
             size.num_witnesses,
             size.witness_len,
             size.norm_bound_sq,
             size.num_constraints,
             size.num_constant_constraints,
             &mut rng,
-        )
+        );
+        nvtx_timed_pop!();
+        result
     }
 
     pub fn new<Rng: rand::Rng + ?Sized>(
@@ -434,6 +437,8 @@ impl<R: PolyRing> CommonReferenceString<R> {
         debug_assert!(best_mu >= folded_size.num_witnesses_t_g_h());
 
         nvtx_timed_pop!();
+        nvtx_timed_pop!();
+
         folded_size
     }
 

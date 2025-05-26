@@ -11,6 +11,7 @@ use relations::Relation;
 
 use crate::binary_r1cs::util::BinaryR1CSCRS;
 use crate::common_reference_string::CommonReferenceString;
+use crate::{nvtx_timed, nvtx_timed_pop};
 
 pub trait LabradorIOPattern<R, H>:
 SerIOPattern + SqueezeFromRandomBytes + RatchetIOPattern
@@ -29,9 +30,10 @@ where
     // }
 
     fn labrador_io(self, crs: &CommonReferenceString<R>) -> Self {
+        nvtx_timed!("labrador_io");
         let log_q = R::modulus().bits() as f64;
         let num_aggregs = (128. / log_q).ceil() as usize;
-        self.absorb_vector::<R>(crs.k1, "prover message 1")
+        let result = self.absorb_vector::<R>(crs.k1, "prover message 1")
             .squeeze_matrices::<R, WeightedTernaryChallengeSet<R>>(
                 256,
                 crs.n,
@@ -57,7 +59,9 @@ where
             .absorb_vector::<R>(crs.n, "prover message 5 (z)")
             .absorb_vectors::<R>(crs.k, crs.r, "prover message 5 (t)")
             .absorb_symmetric_matrix::<R>(crs.r, "prover message 5 (G)")
-            .absorb_symmetric_matrix::<R>(crs.r, "prover message 5 (H)")
+            .absorb_symmetric_matrix::<R>(crs.r, "prover message 5 (H)");
+        nvtx_timed_pop!();
+        result
     }
 
     fn labrador_binaryr1cs_io(
@@ -65,13 +69,16 @@ where
         size: &<R1CS<Z2> as Relation>::Size,
         crs: &BinaryR1CSCRS<R>,
     ) -> Self {
+        nvtx_timed!("labrador_binaryr1cs_io");
         let k = size.num_constraints;
         let secparam = crs.security_parameter;
-        self.absorb_vector::<R>(crs.A.nrows(), "prover message 1 (t)")
+        let result = self.absorb_vector::<R>(crs.A.nrows(), "prover message 1 (t)")
             .squeeze_binary_matrix(secparam, k, "verifier message 1 (alpha)")
             .squeeze_binary_matrix(secparam, k, "verifier message 1 (beta)")
             .squeeze_binary_matrix(secparam, k, "verifier message 1 (gamma)")
-            .absorb_vector_canonical::<R::BaseRing>(secparam, "prover message 2 (g)")
+            .absorb_vector_canonical::<R::BaseRing>(secparam, "prover message 2 (g)");
+        nvtx_timed_pop!();
+        result
     }
 }
 
