@@ -201,6 +201,9 @@ where
         .map(|(s_i, c_i)| (s_i * c_i).into())
         .sum();
 
+    // start_tracking_backtrace();
+
+
     let z_decomp = decompose_vec_polyring(&z.as_slice(), crs.b, Some(2usize));
 
     let mut layouter = Layouter::<R>::new(next_size);
@@ -211,8 +214,9 @@ where
     layouter.set_g(G_flat.as_slice());
     layouter.set_h(H_flat.as_slice());
 
-    let witness_next = Witness::<R>::new(layouter.split());
     nvtx_timed_pop!();
+    
+    let witness_next = Witness::<R>::new(layouter.split());
 
     nvtx_timed_pop!();
 

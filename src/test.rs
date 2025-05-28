@@ -109,6 +109,7 @@ where
         instance_in: &Self::InstanceIn,
         arthur: &mut Arthur,
     ) -> ProofResult<(Self::IndexOut, Self::InstanceOut)> {
+        //stop_tracking_backtrace();
         nvtx_timed!("verify");
         let result = verify_principal_relation_oneround(arthur, pp, index_in, instance_in);
         nvtx_timed_pop!();

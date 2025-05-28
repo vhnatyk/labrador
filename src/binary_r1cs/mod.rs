@@ -74,6 +74,7 @@ where
         arthur: &mut Arthur,
     ) -> ProofResult<(Self::IndexOut, Self::InstanceOut)>
     {
+        //stop_tracking_backtrace();
         nvtx_timed!("verify");
         let result = verify_reduction_binaryr1cs_labradorpr(arthur, pp, index_in, instance_in);
         nvtx_timed_pop!();

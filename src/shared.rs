@@ -29,33 +29,33 @@ pub struct Layouter<R: PolyRing> {
 }
 
 impl<R: PolyRing> Layouter<R> {
-    #[inline(always)]
+    #[inline(never)]
     fn z1_offset(folded_size: FoldedSize) -> usize {
         folded_size.nu * folded_size.size.witness_len
     }
 
-    #[inline(always)]
+    #[inline(never)]
     fn zi_len(folded_size: FoldedSize) -> usize {
         folded_size.size_z / 2
     }
 
-    #[inline(always)]
+    #[inline(never)]
     fn t_offset(folded_size: FoldedSize) -> usize {
         // t starts at 2*nu * n_next
         2 * folded_size.nu * folded_size.size.witness_len
     }
 
-    #[inline(always)]
+    #[inline(never)]
     fn g_offset(folded_size: FoldedSize) -> usize {
         Self::t_offset(folded_size) + folded_size.size_t
     }
 
-    #[inline(always)]
+    #[inline(never)]
     fn h_offset(folded_size: FoldedSize) -> usize {
         Self::g_offset(folded_size) + folded_size.size_g
     }
 
-    #[inline(always)]
+    #[inline(never)]
     pub fn new(folded_size: FoldedSize) -> Self {
         Self {
             folded_size,
@@ -66,26 +66,26 @@ impl<R: PolyRing> Layouter<R> {
         }
     }
 
-    #[inline(always)]
+    #[inline(never)]
     pub fn set_z0(&mut self, v: &[R]) {
         self.vec[0..Self::zi_len(self.folded_size)].copy_from_slice(&v);
     }
 
-    #[inline(always)]
+    #[inline(never)]
     pub fn set_z1(&mut self, v: &[R]) {
         self.vec[Self::z1_offset(self.folded_size)
             ..Self::z1_offset(self.folded_size) + Self::zi_len(self.folded_size)]
             .copy_from_slice(&v);
     }
 
-    #[inline(always)]
+    #[inline(never)]
     pub fn set_t(&mut self, v: &[R]) {
         self.vec[Self::t_offset(self.folded_size)
             ..Self::t_offset(self.folded_size) + self.folded_size.size_t]
             .copy_from_slice(&v);
     }
 
-    #[inline(always)]
+    #[inline(never)]
     pub fn set_g(&mut self, v: &[R]) {
         self.vec[Self::g_offset(self.folded_size)
             ..Self::g_offset(self.folded_size) + self.folded_size.size_g]
