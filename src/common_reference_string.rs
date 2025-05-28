@@ -14,7 +14,7 @@ use num_traits::{Float, ToPrimitive};
 use relations::principal_relation::Size;
 use serde::{Deserialize, Serialize};
 use tracing::info;
-use crate::{nvtx_timed, nvtx_timed_pop};
+use lattirust_arithmetic::{nvtx_timed, nvtx_timed_pop};
 
 /// Common reference string for one round of the LaBRADOR protocol
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

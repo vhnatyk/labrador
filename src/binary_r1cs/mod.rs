@@ -13,7 +13,7 @@ use relations::reduction::Reduction;
 use crate::binary_r1cs::prover::prove_reduction_binaryr1cs_labradorpr;
 use crate::binary_r1cs::util::BinaryR1CSCRS;
 use crate::binary_r1cs::verifier::verify_reduction_binaryr1cs_labradorpr;
-use crate::{nvtx_timed, nvtx_timed_pop};
+use lattirust_arithmetic::{nvtx_timed, nvtx_timed_pop};
 
 pub mod prover;
 #[cfg(test)]

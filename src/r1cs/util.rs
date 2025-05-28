@@ -11,7 +11,7 @@ use lattirust_arithmetic::linear_algebra::Vector;
 
 use crate::binary_r1cs::util::Z2;
 use crate::common_reference_string::{CommonReferenceString, SECURITY_PARAMETER};
-use crate::{nvtx_timed, nvtx_timed_pop};
+use lattirust_arithmetic::{nvtx_timed, nvtx_timed_pop};
 
 pub struct R1CSCRS<R: PolyRing> {
     pub A: Matrix<R>,

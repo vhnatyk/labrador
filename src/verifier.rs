@@ -18,7 +18,7 @@ use relations::Relation;
 
 use crate::common_reference_string::CommonReferenceString;
 use crate::shared::{compute_a__, compute_phi, compute_phi__, fold_instance, TranscriptView};
-use crate::{nvtx_timed, nvtx_timed_pop};
+use lattirust_arithmetic::{nvtx_timed, nvtx_timed_pop};
 
 pub fn verify_principal_relation_oneround<'a, R: PolyRing>(
     arthur: &mut Arthur,

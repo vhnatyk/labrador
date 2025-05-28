@@ -19,7 +19,7 @@ use relations::reduction::Reduction;
 use crate::common_reference_string::CommonReferenceString;
 use crate::prover::prove_principal_relation_oneround;
 use crate::verifier::verify_principal_relation_oneround;
-use crate::{nvtx_timed, nvtx_timed_pop};
+use lattirust_arithmetic::{nvtx_timed, nvtx_timed_pop};
 
 // Q = 2^64+1
 const Q1: u64 = 274177;

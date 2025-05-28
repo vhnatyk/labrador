@@ -8,7 +8,7 @@ use num_traits::{One, Zero};
 use lattirust_arithmetic::linear_algebra::{Matrix, Scalar, SymmetricMatrix, Vector};
 use lattirust_arithmetic::ring::Ring;
 use lattirust_arithmetic::ring::{PolyRing, Z2};
-use crate::{nvtx_timed, nvtx_timed_pop};
+use lattirust_arithmetic::{nvtx_timed, nvtx_timed_pop};
 
 pub fn commit<R: Ring>(A: &Matrix<R>, s: &Vector<R>) -> Vector<R> {
     nvtx_timed!("commit");

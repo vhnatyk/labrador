@@ -9,7 +9,7 @@ use relations::principal_relation::{Index, Instance, QuadraticConstraint, Size};
 
 use crate::common_reference_string::{CommonReferenceString, FoldedSize};
 use crate::util::{flatten_symmetric_matrix, mul_basescalar_vector};
-use crate::{nvtx_timed, nvtx_timed_pop};
+use lattirust_arithmetic::{nvtx_timed, nvtx_timed_pop};
 
 /// A view of the transcript of one execution of the core Labrador protocol
 pub struct TranscriptView<R: PolyRing> {

@@ -18,7 +18,7 @@ use relations::Relation;
 use crate::binary_r1cs::util::{reduce, BinaryR1CSCRS, BinaryR1CSTranscript};
 use crate::binary_r1cs::BinaryR1CS;
 use crate::verifier::verify_principal_relation;
-use crate::{nvtx_timed, nvtx_timed_pop};
+use lattirust_arithmetic::{nvtx_timed, nvtx_timed_pop};
 
 pub fn verify_reduction_binaryr1cs_labradorpr<R: PolyRing>(
     arthur: &mut Arthur,

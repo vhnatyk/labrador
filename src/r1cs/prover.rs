@@ -15,7 +15,7 @@ use lattirust_arithmetic::linear_algebra::Vector;
 
 use crate::r1cs::util::{R1CSCRS, R1CSInstance};
 use crate::util::{concat, flatten_vec_vector};
-use crate::{nvtx_timed, nvtx_timed_pop};
+use lattirust_arithmetic::{nvtx_timed, nvtx_timed_pop};
 
 pub type Z64 = Zq2<274177, 67280421310721>; // Q = 2^64+1
 

@@ -19,7 +19,7 @@ use crate::binary_r1cs::BinaryR1CS;
 use crate::binary_r1cs::util::{BinaryR1CSCRS, BinaryR1CSTranscript, reduce};
 use crate::prover::prove_principal_relation;
 use crate::util::{concat, embed, lift};
-use crate::{nvtx_timed, nvtx_timed_pop};
+use lattirust_arithmetic::{nvtx_timed, nvtx_timed_pop};
 
 #[instrument(
     name = "BinR1CS -> PR",

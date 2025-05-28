@@ -18,7 +18,7 @@ use relations::principal_relation::{
 
 use crate::common_reference_string::CommonReferenceString;
 use crate::util::{basis_vector, embed};
-use crate::{nvtx_timed, nvtx_timed_pop};
+use lattirust_arithmetic::{nvtx_timed, nvtx_timed_pop};
 
 const SECURITY_PARAMETER: usize = 128;
 

@@ -11,7 +11,7 @@ use relations::Relation;
 
 use crate::binary_r1cs::util::BinaryR1CSCRS;
 use crate::common_reference_string::CommonReferenceString;
-use crate::{nvtx_timed, nvtx_timed_pop};
+use lattirust_arithmetic::{nvtx_timed, nvtx_timed_pop};
 
 pub trait LabradorIOPattern<R, H>:
 SerIOPattern + SqueezeFromRandomBytes + RatchetIOPattern
